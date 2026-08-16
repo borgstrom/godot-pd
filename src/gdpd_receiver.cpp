@@ -68,7 +68,7 @@ void Receiver::receiveNoteOn(const int p_channel, const int p_pitch, const int p
 void Receiver::receiveControlChange(const int p_channel, const int p_controller, const int p_value) {
 	CHECK_SIGNALLER
 
-	signaller->emit_signal("receive_control_change", p_channel, p_controller);
+	signaller->emit_signal("receive_control_change", p_channel, p_controller, p_value);
 }
 
 void Receiver::receiveProgramChange(const int p_channel, const int p_value) {
