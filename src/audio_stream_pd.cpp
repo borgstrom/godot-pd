@@ -1,6 +1,7 @@
 #include "audio_stream_pd.h"
 #include "util.hpp"
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -102,6 +103,7 @@ pd::List AudioStreamPlaybackPD::_pd_list_from(const Array &p_arr) {
 
 AudioStreamPlaybackPD::AudioStreamPlaybackPD() {
 	active = false;
+	mixed_frames = 0;
 	stream = nullptr;
 	receiver.set_signaller(this);
 	pd.setReceiver(&receiver);
@@ -128,13 +130,26 @@ int32_t AudioStreamPlaybackPD::_mix_resampled(AudioFrame *p_dst_buffer, int32_t 
 	pd.receiveMessages();
 	pd.receiveMidi();
 
-	int ticks = p_frame_count / libpd_blocksize();
-
 	// an array of `AudioFrame`s is laid out in memory as
 	// interleaved float samples: [left0, right0, left1, right1, left2, right2, ...]
 	// which is exactly what pd.processFloat requires
 	float *dst = reinterpret_cast<float*>(p_dst_buffer);
-	ERR_FAIL_COND_V_MSG(!pd.processFloat(ticks, NULL, dst), p_frame_count, "Pure Data audio processing failed");
+
+	// Pd can only produce whole blocks (64 frames); the engine's resampler
+	// always requests a multiple of that, so ticks == 0 should not happen
+	int ticks = p_frame_count / libpd_blocksize();
+	if (ticks == 0) {
+		memset(dst, 0, sizeof(AudioFrame) * p_frame_count);
+		return p_frame_count;
+	}
+
+	if (!pd.processFloat(ticks, NULL, dst)) {
+		memset(dst, 0, sizeof(AudioFrame) * p_frame_count);
+		active = false;
+		ERR_FAIL_V_MSG(p_frame_count, "Pure Data audio processing failed");
+	}
+
+	mixed_frames += ticks * libpd_blocksize();
 
 	return ticks * libpd_blocksize();
 }
@@ -150,10 +165,29 @@ void AudioStreamPlaybackPD::_start(double p_from_pos) {
 
 	ERR_FAIL_COND_MSG(!pd.init(0, 2, stream->get_mix_rate(), true), "Pure Data could not be initialized.");
 
+	mixed_frames = 0;
 	active = true;
 
 	pd.computeAudio(true);
 	begin_resample();
+}
+
+void AudioStreamPlaybackPD::_stop() {
+	active = false;
+
+	if (pd.isInited()) {
+		pd.computeAudio(false);
+	}
+}
+
+bool AudioStreamPlaybackPD::_is_playing() const {
+	return active;
+}
+
+double AudioStreamPlaybackPD::_get_playback_position() const {
+	ERR_FAIL_COND_V_MSG(stream == nullptr, 0.0, "No audio stream available. Cannot get playback position.");
+
+	return double(mixed_frames.load()) / double(stream->get_mix_rate());
 }
 
 int AudioStreamPlaybackPD::open_patch(String p_path) {
