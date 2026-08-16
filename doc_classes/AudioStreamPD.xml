@@ -5,6 +5,7 @@
 	</brief_description>
 	<description>
 		[AudioStreamPD] receives audio data from Pure Data (Pd) patches. Please see [AudioStreamPlaybackPD], as it contains most of the methods for interacting with Pd (opening patches, sending messages, etc...).
+		Each playback created from this stream runs its own independent Pure Data instance, so multiple players with [AudioStreamPD] streams — including positional [AudioStreamPlayer2D] and [AudioStreamPlayer3D] — can play at the same time without interfering with each other.
 		Here's an overview of the basic operations:
 		[codeblocks]
 		[gdscript]

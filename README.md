@@ -4,7 +4,7 @@ GDExtension that allows you to interact with and run [Pure Data](https://puredat
 
 Currently uses Pd vanilla version [**0.54-1**](https://puredata.info/downloads/pure-data/releases/0.54-1).
 
-Latest tested Godot version: **4.3 stable**.
+Latest tested Godot version: **4.7 stable**.
 
 ## Installation
 
@@ -48,6 +48,32 @@ func _on_receive_float(dest: String, num: float):
     # do something with num...
 
 ```
+
+### Multiple players
+
+Every playback runs its own independent Pd instance (libpd is built with multi-instance support), so you can use as many players with `AudioStreamPD` streams as you need — each with its own patches and state. Running 10+ concurrent players is routine.
+
+### Positional audio
+
+`AudioStreamPD` works with `AudioStreamPlayer2D` and `AudioStreamPlayer3D` out of the box, including attenuation, panning, and `stream_paused` (a paused player's Pd instance is not processed at all):
+
+```GDScript
+@onready var emitter: AudioStreamPlayer2D = $FireEmitter
+
+func _ready():
+    emitter.stream = AudioStreamPD.new()
+    emitter.play()
+    var pd: AudioStreamPlaybackPD = emitter.get_stream_playback()
+    pd.open_patch("fire.pd")
+```
+
+### Stopping and restarting
+
+Calling `play()` on a stopped player creates a **new** playback with a fresh Pd instance: no patches are open and all Pd state (arrays, subscriptions, receivers) is gone. Re-open patches and re-subscribe after every `play()`.
+
+### Performance in the editor
+
+When running a project from the editor, Godot loads the `template_debug` build of the extension, which includes a debug build of libpd — deliberately, so libpd remains fully inspectable in a debugger. Generative patches can cost an order of magnitude more CPU there than in a release export, so profile release exports before concluding a patch is too expensive.
 
 ## Issues and Limitations
 
