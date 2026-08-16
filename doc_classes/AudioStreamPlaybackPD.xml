@@ -6,6 +6,7 @@
 	<description>
 		[AudioStreamPlaybackPD] is your main handle for interacting with Pure Data (Pd). It is meant to be used with [AudioStreamPD].
 		[b]Note[/b]: Before being able to receive messages coming from Pd through signals ([signal receive_bang], [signal receive_float], etc), you have to [method subscribe] to some message sources first.
+		[b]Note[/b]: The receive signals are emitted deferred: handlers run on the main thread at the end of the current frame, never on the audio thread, so it is safe to touch the scene tree from them.
 		[b]Note[/b]: See the description of [AudioStreamPD] for information on valid value ranges for MIDI messages.
 	</description>
 	<tutorials>
