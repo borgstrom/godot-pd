@@ -31,7 +31,9 @@ class AudioStreamPlaybackPD : public AudioStreamPlaybackResampled {
 	GDCLASS(AudioStreamPlaybackPD, AudioStreamPlaybackResampled)
 	friend class AudioStreamPD;
 
-	const AudioStreamPD *stream;
+	// a Ref, not a raw pointer: the playback (and the audio thread mixing it)
+	// can outlive the moment a script drops its last reference to the stream
+	Ref<AudioStreamPD> stream;
 	gdpd::Receiver receiver;
 	pd::PdBase pd;
 	std::vector<pd::Patch> patches;
