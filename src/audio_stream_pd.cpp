@@ -27,7 +27,7 @@ Ref<AudioStreamPlayback> AudioStreamPD::_instantiate_playback() const {
 
 	playback.instantiate();
 
-	playback->stream = this;
+	playback->stream = Ref<AudioStreamPD>(const_cast<AudioStreamPD *>(this));
 
 	return playback;
 }
@@ -104,7 +104,6 @@ pd::List AudioStreamPlaybackPD::_pd_list_from(const Array &p_arr) {
 AudioStreamPlaybackPD::AudioStreamPlaybackPD() {
 	active = false;
 	mixed_frames = 0;
-	stream = nullptr;
 	receiver.set_signaller(this);
 	pd.setReceiver(&receiver);
 	pd.setMidiReceiver(&receiver);
@@ -155,13 +154,13 @@ int32_t AudioStreamPlaybackPD::_mix_resampled(AudioFrame *p_dst_buffer, int32_t 
 }
 
 float AudioStreamPlaybackPD::_get_stream_sampling_rate() const {
-	ERR_FAIL_COND_V_MSG(stream == nullptr, -1, "No audio stream available. Cannot get sample rate.");
+	ERR_FAIL_COND_V_MSG(stream.is_null(), -1, "No audio stream available. Cannot get sample rate.");
 
 	return stream->get_mix_rate();
 }
 
 void AudioStreamPlaybackPD::_start(double p_from_pos) {
-	ERR_FAIL_COND_MSG(stream == nullptr, "No audio stream available.");
+	ERR_FAIL_COND_MSG(stream.is_null(), "No audio stream available.");
 
 	ERR_FAIL_COND_MSG(!pd.init(0, 2, stream->get_mix_rate(), true), "Pure Data could not be initialized.");
 
@@ -185,7 +184,7 @@ bool AudioStreamPlaybackPD::_is_playing() const {
 }
 
 double AudioStreamPlaybackPD::_get_playback_position() const {
-	ERR_FAIL_COND_V_MSG(stream == nullptr, 0.0, "No audio stream available. Cannot get playback position.");
+	ERR_FAIL_COND_V_MSG(stream.is_null(), 0.0, "No audio stream available. Cannot get playback position.");
 
 	return double(mixed_frames.load()) / double(stream->get_mix_rate());
 }
@@ -195,7 +194,7 @@ int AudioStreamPlaybackPD::open_patch(String p_path) {
 	auto filename = path.filename().string();
 	auto dir = path.parent_path().string();
 
-	ERR_FAIL_COND_V_MSG(filename.empty(), -1, "No filename included in path" + p_path);
+	ERR_FAIL_COND_V_MSG(filename.empty(), -1, "No filename included in path: " + p_path);
 
 	if (dir.empty()) {
 		dir = ".";
@@ -214,7 +213,7 @@ void AudioStreamPlaybackPD::close_patch(String p_path) {
 	auto filename = path.filename().string();
 	auto dir = path.parent_path().string();
 
-	ERR_FAIL_COND_MSG(filename.empty(), "No filename included in path" + p_path);
+	ERR_FAIL_COND_MSG(filename.empty(), "No filename included in path: " + p_path);
 
 	if (dir.empty()) {
 		dir = ".";
