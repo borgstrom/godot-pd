@@ -3,6 +3,7 @@
 
 #include "gdpd_receiver.h"
 #include <PdBase.hpp>
+#include <atomic>
 #include <godot_cpp/classes/audio_stream.hpp>
 #include <godot_cpp/classes/audio_stream_playback_resampled.hpp>
 #include <godot_cpp/variant/array.hpp>
@@ -35,7 +36,11 @@ class AudioStreamPlaybackPD : public AudioStreamPlaybackResampled {
 	gdpd::Receiver receiver;
 	pd::PdBase pd;
 	std::vector<pd::Patch> patches;
-	bool active;
+	// written on the main thread, read by the audio thread in _mix_resampled
+	std::atomic<bool> active;
+	// frames produced at the stream rate; written on the audio thread, read
+	// by _get_playback_position on the main thread
+	std::atomic<uint64_t> mixed_frames;
 
 protected:
 	static void _bind_methods();
@@ -45,6 +50,9 @@ public:
 	int32_t _mix_resampled(AudioFrame *p_dst_buffer, int32_t p_frame_count) override;
 	float _get_stream_sampling_rate() const override;
 	void _start(double p_from_pos) override;
+	void _stop() override;
+	bool _is_playing() const override;
+	double _get_playback_position() const override;
 	int open_patch(String p_path);
 	void close_patch(String p_path);
 	void close_patch_id(int p_dollar_zero);
